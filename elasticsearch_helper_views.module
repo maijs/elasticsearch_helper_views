@@ -38,7 +38,6 @@ function elasticsearch_helper_views_views_data() {
   $data['elasticsearch_result']['table']['group'] = t('Elasticsearch result');
 
   $data['elasticsearch_result']['table']['base'] = [
-    'field' => 'id',
     'title' => t('Elasticsearch result'),
     'help' => t('Elasticsearch result'),
     'query_id' => 'elasticsearch_query',
@@ -51,6 +50,66 @@ function elasticsearch_helper_views_views_data() {
       'id' => 'elasticsearch_rendered_entity',
     ],
   ];
+
+  // Create field definitions from Elasticsearch mapping.
+  if ($index_definitions = \Drupal::service('plugin.manager.elasticsearch_index.processor')->getDefinitions()) {
+    $client = \Drupal::service('elasticsearch_helper.elasticsearch_client');
+
+    foreach ($index_definitions as $index_definition) {
+      if (isset($index_definition['indexName'], $index_definition['typeName'])) {
+        $index = $index_definition['indexName'];
+        $type = $index_definition['typeName'];
+
+        try {
+          $mapping = $client->indices()->getMapping(['index' => $index, 'type' => $type]);
+
+          if (isset($mapping[$index]['mappings'][$type]['properties'])) {
+            foreach ($mapping[$index]['mappings'][$type]['properties'] as $property => $property_definition) {
+              if (!isset($property_definition['properties'])) {
+                $plugin_id = '';
+                $field_definition = [];
+                $type = $property_definition['type'];
+
+                switch ($type) {
+                  case 'text':
+                  case 'keyword':
+                    $plugin_id = 'standard';
+                    break;
+                  case 'long':
+                  case 'integer':
+                  case 'short':
+                  case 'byte':
+                  case 'double':
+                  case 'float':
+                    $plugin_id = 'numeric';
+                    if ($type == 'float') {
+                      $field_definition['float'] = TRUE;
+                    }
+                    break;
+                  case 'boolean':
+                    $plugin_id = 'boolean';
+                    break;
+                }
+
+                // Add field definition.
+                if ($plugin_id) {
+                  $data['elasticsearch_result'][$property] = [
+                    'field' => [
+                      'title' => t(ucfirst(str_replace(['-', '_'], [' ', ' '], $property))),
+                      'help' => t('Appears in index: @index', ['@index' => $index]),
+                      'id' => $plugin_id,
+                    ] + $field_definition,
+                  ];
+                }
+              }
+            }
+          }
+        } catch (\Exception $e) {
+          watchdog_exception('elasticsearch_helper_views', $e);
+        }
+      }
+    }
+  }
 
   return $data;
 }
