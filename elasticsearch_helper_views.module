@@ -70,3 +70,18 @@ function elasticsearch_helper_views_views_data() {
 
   return $data;
 }
+
+/**
+ * Implements hook_preprocess_HOOK().
+ */
+function template_preprocess_elasticsearch_search_result(&$variables) {
+  /** @var \Drupal\views\ResultRow $row */
+  $row = $variables['row'];
+  $variables['document'] = [];
+
+  if (!empty($row->_source)) {
+    foreach ($row->_source as $field_name => $field_value) {
+      $variables['document'][$field_name] = $field_value;
+    }
+  }
+}

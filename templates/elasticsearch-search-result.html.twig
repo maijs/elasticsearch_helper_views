@@ -1,0 +1,18 @@
+{#
+/**
+ * @file
+ * Default theme implementation for Elasticsearch search result.
+ *
+ * Available variables:
+ * - view: The view that the field belongs to.
+ * - row: The raw search result from Elasticsearch.
+ * - document: The values of the document ("_source" element of "row" value).
+ *
+ * @see template_preprocess_elasticsearch_search_result()
+ *
+ * @ingroup themeable
+ */
+#}
+{% for field in document %}
+  <div>{{ field|e }}</div>
+{% endfor %}
